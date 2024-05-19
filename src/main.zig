@@ -1,6 +1,14 @@
 const std = @import("std");
+const Watcher = @import("Watcher.zig");
+
+pub fn callback() void {}
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    const allocator = gpa.allocator();
+
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
 
@@ -14,6 +22,12 @@ pub fn main() !void {
     try stdout.print("Run `zig build test` to run the tests.\n", .{});
 
     try bw.flush(); // don't forget to flush!
+
+    var watcher = try Watcher.init(allocator);
+    defer watcher.deinit();
+
+    try watcher.addDir("src");
+    try watcher.start(callback);
 }
 
 test "simple test" {
