@@ -26,8 +26,9 @@ pub fn main() !void {
     var watcher = try Watcher.init(allocator);
     defer watcher.deinit();
 
+    // TODO: we need to add like 1 second delay in callback to know when to reload
     try watcher.addDir("src");
-    try watcher.start(callback);
+    try watcher.run(callback);
 }
 
 test "simple test" {

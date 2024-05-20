@@ -8,6 +8,7 @@ const mem = std.mem;
 const Allocator = mem.Allocator;
 const native_os = builtin.os.tag;
 const fd_t = system.fd_t;
+const fs = std.fs;
 
 const EPOLL_CTL_ADD = 1;
 const IN_NONBLOCK = 0x800;
@@ -65,16 +66,22 @@ pub fn addDir(self: *Self, path: []const u8) !void {
     _ = try self.events.addOne(self.allocator);
 }
 
-pub fn start(self: *Self, callback: fn () void) !void {
+pub fn run(self: *Self, callback: fn () void) !void {
     _ = callback;
 
-    //var buf: [32]u8 = undefined;
+    var buf: [@sizeOf(system.inotify_event) + fs.MAX_NAME_BYTES + 1]u8 align(4) = undefined;
     while (true) {
-        // why tf it want me to read 32 bytes
-        const bytes_read = try posix.read(self.inotify, mem.sliceAsBytes(self.events.items[0..]));
-        const n = @divExact(bytes_read, @sizeOf(system.inotify_event));
-        for (0..n) |i| {
-            std.debug.print("read: {}\n", .{self.events.items[i]});
+        const bytes_read = try posix.read(self.inotify, &buf);
+        var start = @intFromPtr(&buf);
+        const end = @intFromPtr(&buf) + bytes_read;
+
+        std.debug.print("bytes_read: {}\n", .{bytes_read});
+        while (start != end) {
+            const event = mem.bytesAsValue(system.inotify_event, @as(*[:0]u8, @ptrFromInt(start)));
+            const event_size = @sizeOf(system.inotify_event) + event.len;
+            defer start += event_size;
+
+            std.debug.print("ev_size: {}, ev_name: {s}\n", .{ event_size, event.getName().? });
         }
     }
 }
