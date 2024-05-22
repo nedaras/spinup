@@ -75,6 +75,12 @@ pub fn addDir(self: *Self, path: []const u8) !void {
     try self.wd_paths.put(self.allocator, wd, path);
 }
 
+pub fn removeDir(self: *Self, path: []const u8) !void {
+    _ = self;
+    _ = path;
+    std.debug.print("Removed\n", .{});
+}
+
 fn getEventFromMask(mask: u32) ?EventType {
     if (mask & IN_MODIFY != 0) return .modify;
     if (mask & IN_CREATE != 0) return .create;
@@ -95,7 +101,7 @@ const EventType = enum {
     move,
 };
 
-pub fn run(self: *Self, callback: fn (absolute_path: []const u8, event: Event) void) !void {
+pub fn run(self: *Self, callback: fn (watcher: *Self, absolute_path: []const u8, event: Event) void) !void {
     var buf: [@sizeOf(system.inotify_event) + fs.MAX_NAME_BYTES + 1]u8 align(4) = undefined;
     while (true) {
         const bytes_read = try posix.read(self.inotify, &buf);
@@ -115,7 +121,7 @@ pub fn run(self: *Self, callback: fn (absolute_path: []const u8, event: Event) v
                 const path = try fs.path.join(self.allocator, &.{ dir.*, file });
                 defer self.allocator.free(path);
 
-                callback(path, .{ .is_dir = event.mask & IN_ISDIR != 0, .type = event_type });
+                callback(self, path, .{ .is_dir = event.mask & IN_ISDIR != 0, .type = event_type });
             }
         }
     }
