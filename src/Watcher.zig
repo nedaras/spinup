@@ -75,12 +75,6 @@ pub fn addDir(self: *Self, path: []const u8) !void {
     try self.wd_paths.put(self.allocator, wd, path);
 }
 
-inline fn getAbsolutePath(dir: []const u8, file: []const u8) []const u8 {
-    assert(!fs.path.isSep(dir[dir.len - 1]));
-    var buf: [fs.MAX_PATH_BYTES]u8 = undefined;
-    return fmt.bufPrint(&buf, "{s}/{s}", .{ dir, file }) catch unreachable;
-}
-
 fn getEventFromMask(mask: u32) ?EventType {
     if (mask & IN_MODIFY != 0) return .modify;
     if (mask & IN_CREATE != 0) return .create;
@@ -112,12 +106,16 @@ pub fn run(self: *Self, callback: fn (absolute_path: []const u8, event: Event) v
             const event = mem.bytesAsValue(system.inotify_event, @as(*[:0]u8, @ptrFromInt(start)));
             const event_size = @sizeOf(system.inotify_event) + event.len;
             defer start += event_size;
-            if (event.getName()) |name| {
+            if (event.getName()) |file| {
                 assert(self.wd_paths.contains(event.wd));
-                const path = self.wd_paths.getPtr(event.wd).?;
+                const dir = self.wd_paths.getPtr(event.wd).?;
                 const event_type = getEventFromMask(event.mask).?;
 
-                callback(getAbsolutePath(path.*, name), .{ .is_dir = event.mask & IN_ISDIR != 0, .type = event_type });
+                // NOTE: prob we can ussed buffered allocator with MAX_PATH size.
+                const path = try fs.path.join(self.allocator, &.{ dir.*, file });
+                defer self.allocator.free(path);
+
+                callback(path, .{ .is_dir = event.mask & IN_ISDIR != 0, .type = event_type });
             }
         }
     }

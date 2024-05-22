@@ -1,9 +1,13 @@
 const std = @import("std");
+const fs = std.fs;
+const path = fs.path;
 const Watcher = @import("Watcher.zig");
 
 pub fn callback(absolute_path: []const u8, event: Watcher.Event) void {
     const suffix = if (event.is_dir) "dir" else "file";
     std.debug.print("path_update: {s}({s}) ({})\n", .{ absolute_path, suffix, event.type });
+
+    if (event.is_dir()) {}
 }
 
 pub fn main() !void {
