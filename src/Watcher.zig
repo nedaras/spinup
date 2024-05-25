@@ -73,12 +73,31 @@ pub fn addDir(self: *Self, path: []const u8) !void {
     errdefer _ = self.events.pop();
 
     try self.wd_paths.put(self.allocator, wd, path);
+
+    std.debug.print("added dir: {s}, wd: {}\n", .{ path, wd });
 }
 
-pub fn removeDir(self: *Self, path: []const u8) !void {
-    _ = self;
-    _ = path;
-    std.debug.print("Removed\n", .{});
+pub fn removeDir(self: *Self, path: []const u8) void {
+    var it = self.wd_paths.iterator();
+    while (it.next()) |entry| {
+        if (!mem.eql(u8, entry.value_ptr.*, path)) continue;
+        if (self.wd_paths.fetchRemove(entry.key_ptr.*)) |item| {
+            posix.inotify_rm_watch(self.inotify, item.value); // why the fuck its invalid, cuz it was removed thats why
+            self.allocator.free(item.value);
+            break;
+        }
+    }
+}
+
+fn remove(self: *Self, path: []const u8) void {
+    var it = self.wd_paths.iterator();
+    while (it.next()) |entry| {
+        if (!mem.eql(u8, entry.value_ptr.*, path)) continue;
+        if (self.wd_paths.fetchRemove(entry.key_ptr.*)) |item| {
+            self.allocator.free(item.value);
+            break;
+        }
+    }
 }
 
 fn getEventFromMask(mask: u32) ?EventType {
@@ -119,9 +138,11 @@ pub fn run(self: *Self, callback: fn (watcher: *Self, absolute_path: []const u8,
 
                 // NOTE: prob we can ussed buffered allocator with MAX_PATH size.
                 const path = try fs.path.join(self.allocator, &.{ dir.*, file });
-                defer self.allocator.free(path);
+                const inotify_event: Event = .{ .is_dir = event.mask & IN_ISDIR != 0, .type = event_type };
 
-                callback(self, path, .{ .is_dir = event.mask & IN_ISDIR != 0, .type = event_type });
+                // NOTE: IT WAS AUTOMATICLY REMOVED RFOM THE INOTIFY WATCH BY KERNAL!!!!!
+                self.remove(path);
+                callback(self, path, inotify_event);
             }
         }
     }

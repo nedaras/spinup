@@ -7,8 +7,8 @@ pub fn callback(watcher: *Watcher, absolute_path: []const u8, event: Watcher.Eve
     const suffix = if (event.is_dir) "dir" else "file";
     std.debug.print("path_update: {s}({s}) ({})\n", .{ absolute_path, suffix, event.type });
 
-    if (event.is_dir and event.type == .delete) {
-        watcher.removeDir(path.dirname(absolute_path).?) catch std.debug.panic("...");
+    if (event.is_dir and event.type == .create) {
+        watcher.addDir(absolute_path) catch |e| std.debug.panic("err: {}", .{e});
     }
 }
 
