@@ -65,7 +65,8 @@ pub fn deinit(self: *Self) void {
     self.wd_paths.deinit(self.allocator);
 }
 
-pub fn addDir(self: *Self, path: []const u8) !void {
+pub const WatcherAddDirError = posix.INotifyAddWatchError || Allocator.Error;
+pub fn addDir(self: *Self, path: []const u8) WatcherAddDirError!void {
     const wd = try posix.inotify_add_watch(self.inotify, path, IN_MODIFY | IN_CREATE | IN_DELETE); // add IN_MOVE??
     errdefer posix.inotify_rm_watch(self.inotify, wd);
 
@@ -73,8 +74,6 @@ pub fn addDir(self: *Self, path: []const u8) !void {
     errdefer _ = self.events.pop();
 
     try self.wd_paths.put(self.allocator, wd, path);
-
-    std.debug.print("added dir: {s}, wd: {}\n", .{ path, wd });
 }
 
 pub fn removeDir(self: *Self, path: []const u8) void {

@@ -3,12 +3,20 @@ const fs = std.fs;
 const path = fs.path;
 const Watcher = @import("Watcher.zig");
 
-pub fn callback(watcher: *Watcher, absolute_path: []const u8, event: Watcher.Event) void {
-    const suffix = if (event.is_dir) "dir" else "file";
-    std.debug.print("path_update: {s}({s}) ({})\n", .{ absolute_path, suffix, event.type });
+pub fn executeCommand(allocator: std.mem.Allocator, command: []const []const u8) !void {
+    var child = std.ChildProcess.init(command, allocator);
+    _ = try child.spawnAndWait();
+}
 
+pub fn callback(watcher: *Watcher, absolute_path: []const u8, event: Watcher.Event) void {
+    if (!event.is_dir) {
+        executeCommand(watcher.allocator, &.{ "echo", "hello world!!!" }) catch |err| {
+            std.debug.print("Could not run command, returned with error: {}\n", .{err});
+        };
+    }
     if (event.is_dir and event.type == .create) {
-        watcher.addDir(absolute_path) catch |e| std.debug.panic("err: {}", .{e});
+        // TODO: we sould handle errors.
+        watcher.addDir(absolute_path) catch unreachable;
     }
 }
 
