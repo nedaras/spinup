@@ -1,0 +1,5 @@
+{
+  "include": ["src/*.zig"],
+  "exclude": ["src/main.zig"],
+  "run": ["zig", "build", "run"]
+}
